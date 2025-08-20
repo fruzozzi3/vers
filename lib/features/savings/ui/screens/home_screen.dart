@@ -460,57 +460,78 @@ class GoalCard extends StatelessWidget {
                   ),
 
                 const SizedBox(height: 16),
-
+                
                 // Прогресс
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
+                FutureBuilder(
+                  future: Future.wait([
+                    vm.requiredMonthlyForPeriod(goal),
+                    vm.requiredDailyForPeriod(goal),
+                  ]),
+                  builder: (context, AsyncSnapshot<List<int>> snapshot) {
+                    final requiredMonthly = snapshot.data?[0] ?? 0;
+                    final requiredDaily = snapshot.data?[1] ?? 0;
+                    
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Нужно в месяц',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${currencyFormat.format(vm.requiredMonthly(goal))} до ' + DateFormat('dd.MM.yyyy').format(goal.deadlineAt),
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Накоплено',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        Text(
-                          currencyFormat.format(goal.currentAmount),
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Нужно в месяц',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${currencyFormat.format(requiredMonthly)} ₽',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Нужно в день',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${currencyFormat.format(requiredDaily)} ₽',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Цель',
-                          style: Theme.of(context).textTheme.bodyMedium,
+                        const SizedBox(width: 16),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Накоплено',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            Text(
+                              currencyFormat.format(goal.currentAmount),
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Цель',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            Text(
+                              currencyFormat.format(goal.targetAmount),
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ],
                         ),
-                        Text(
-                          currencyFormat.format(goal.targetAmount),
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
                       ],
-                    ),
-                  ],
+                    );
+                  },
                 ),
-
+                
                 const SizedBox(height: 16),
 
                 // Прогресс бар
