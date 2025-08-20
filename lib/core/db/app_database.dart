@@ -1,6 +1,6 @@
 // lib/core/db/app_database.dart
 
-import 'package:path/path.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:io';
@@ -20,9 +20,9 @@ class AppDatabase {
 
   Future<Database> _initDb() async {
     final Directory dir = await getApplicationDocumentsDirectory();
-    final String path = path.join(dir.path, 'my_kopilka_v2.db'); // Новое имя файла БД
+    final String path = p.join(dir.path, 'my_kopilka_v2.db'); // Новое имя файла БД
     return await openDatabase(
-      joinDir.path,
+      path,
       version: 1,
       onOpen: (db) async {
         try { await db.execute("ALTER TABLE goals ADD COLUMN deadline_at INTEGER"); } catch (_) {}
