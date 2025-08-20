@@ -315,7 +315,7 @@ showDialog(
                 validator: (value) => value?.isEmpty ?? true ? 'Введите название' : null,
               ),
               const SizedBox(height: 16),
-              \1
+\1
               const SizedBox(height: 16),
               Row(
                 children: [
