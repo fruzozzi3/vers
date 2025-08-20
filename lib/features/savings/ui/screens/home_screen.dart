@@ -315,7 +315,24 @@ showDialog(
                 validator: (value) => value?.isEmpty ?? true ? 'Введите название' : null,
               ),
               const SizedBox(height: 16),
-\1
+              TextFormField(
+                controller: amountController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Сумма',
+                  hintText: 'Например: 50000',
+                  prefixIcon: Icon(Icons.attach_money),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Введите сумму';
+                  }
+                  if (int.tryParse(value) == null) {
+                    return 'Сумма должна быть числом';
+                  }
+                  return null;
+                },
+              ),
               const SizedBox(height: 16),
               Row(
                 children: [
