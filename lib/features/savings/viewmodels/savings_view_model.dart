@@ -133,19 +133,81 @@ class SavingsViewModel extends ChangeNotifier {
     }
   }
 
-  /// Текущий обязательный взнос в месяц, чтобы успеть к дедлайну.
-  /// Учитывает реальные пополнения: если недовнесли/перевнесли — сумма автоматически перерассчитывается.
-  int requiredMonthly(Goal goal, {DateTime? asOf}) {
-    final now = asOf ?? DateTime.now();
-    final remaining = (goal.targetAmount - goal.currentAmount).clamp(0, goal.targetAmount);
-    // считаем оставшиеся дни и переводим в "месяцы" (30 дней) с округлением вверх
-    final daysLeft = goal.deadlineAt.isAfter(now) ? goal.deadlineAt.difference(now).inDays : 0;
-    int monthsLeft = (daysLeft / 30).ceil();
-    if (monthsLeft < 1) monthsLeft = 1;
-    final perMonth = (remaining / monthsLeft).ceil();
-    return perMonth;
+  /// Расчет обязательного взноса, который нужно внести в текущем месяце.
+  Future<int> requiredMonthlyForPeriod(Goal goal) async {
+    // Находим начало и конец текущего месяца
+    final now = DateTime.now();
+    final startOfMonth = DateTime(now.year, now.month, 1);
+    final endOfMonth = DateTime(now.year, now.month + 1, 0);
+
+    // Получаем все транзакции по цели
+    final transactions = await _repository.getTransactionsForGoal(goal.id!);
+
+    // Сумма, внесенная в текущем месяце
+    final amountThisMonth = transactions
+        .where((t) => t.createdAt.isAfter(startOfMonth) && t.createdAt.isBefore(endOfMonth))
+        .fold<int>(0, (sum, t) => sum + t.amount);
+
+    // Расчет общей необходимой суммы в месяц на весь период
+    final remainingAmount = (goal.targetAmount - goal.currentAmount).clamp(0, goal.targetAmount);
+    final monthsLeft = (goal.deadlineAt.difference(now).inDays / 30).ceil();
+    final totalMonthlyRequired = (remainingAmount / (monthsLeft < 1 ? 1 : monthsLeft)).ceil();
+
+    // Сумма, которую еще нужно внести в этом месяце
+    final neededThisMonth = (totalMonthlyRequired - amountThisMonth).clamp(0, totalMonthlyRequired);
+
+    return neededThisMonth;
+  }
+  
+  /// Расчет обязательного взноса, который нужно внести сегодня.
+  Future<int> requiredDailyForPeriod(Goal goal) async {
+      final now = DateTime.now();
+      final startOfMonth = DateTime(now.year, now.month, 1);
+      final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+      final daysPassed = now.day;
+      final daysLeftInMonth = daysInMonth - daysPassed;
+
+      // Получаем все транзакции по цели
+      final transactions = await _repository.getTransactionsForGoal(goal.id!);
+      
+      // Сумма, внесенная с начала месяца
+      final amountThisMonth = transactions
+          .where((t) => t.createdAt.isAfter(startOfMonth))
+          .fold<int>(0, (sum, t) => sum + t.amount);
+          
+      // Сумма, которую нужно было внести к текущему дню
+      final totalMonthlyRequired = await requiredMonthlyForPeriod(goal);
+      final neededSoFar = (totalMonthlyRequired / daysInMonth).ceil() * daysPassed;
+
+      final neededNow = (neededSoFar - amountThisMonth).clamp(0, totalMonthlyRequired);
+
+      if (daysLeftInMonth <= 0) {
+          return neededNow;
+      }
+      return (neededNow / daysLeftInMonth).ceil();
   }
 
+  // Переименовываем старый метод, чтобы он не конфликтовал
+  int requiredMonthlyTotal(Goal goal) {
+      final now = DateTime.now();
+      final remaining = (goal.targetAmount - goal.currentAmount).clamp(0, goal.targetAmount);
+      final daysLeft = goal.deadlineAt.isAfter(now) ? goal.deadlineAt.difference(now).inDays : 0;
+      int monthsLeft = (daysLeft / 30).ceil();
+      if (monthsLeft < 1) monthsLeft = 1;
+      final perMonth = (remaining / monthsLeft).ceil();
+      return perMonth;
+  }
+  
+  // Переименовываем старый метод
+  int requiredDailyTotal(Goal goal) {
+      final now = DateTime.now();
+      final remaining = (goal.targetAmount - goal.currentAmount).clamp(0, goal.targetAmount);
+      final daysLeft = goal.deadlineAt.isAfter(now) ? goal.deadlineAt.difference(now).inDays : 0;
+      if (daysLeft < 1) {
+          return remaining;
+      }
+      return (remaining / daysLeft).ceil();
+  }
 
   // Мотивационные сообщения
   String getMotivationalMessage(Goal goal) {
