@@ -20,7 +20,7 @@ class AppDatabase {
 
   Future<Database> _initDb() async {
     final Directory dir = await getApplicationDocumentsDirectory();
-    final String path = join(dir.path, 'my_kopilka_v2.db'); // Новое имя файла БД
+    final String path = path.join(dir.path, 'my_kopilka_v2.db'); // Новое имя файла БД
     return await openDatabase(
       joinDir.path,
       version: 1,
