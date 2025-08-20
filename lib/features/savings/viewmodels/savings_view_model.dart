@@ -132,13 +132,18 @@ class SavingsViewModel extends ChangeNotifier {
       return SavingsStatistics();
     }
   }
-    int requiredMonthly(Goal goal, {DateTime? asOf}) {
+
+  /// Текущий обязательный взнос в месяц, чтобы успеть к дедлайну.
+  /// Учитывает реальные пополнения: если недовнесли/перевнесли — сумма автоматически перерассчитывается.
+  int requiredMonthly(Goal goal, {DateTime? asOf}) {
     final now = asOf ?? DateTime.now();
     final remaining = (goal.targetAmount - goal.currentAmount).clamp(0, goal.targetAmount);
+    // считаем оставшиеся дни и переводим в "месяцы" (30 дней) с округлением вверх
     final daysLeft = goal.deadlineAt.isAfter(now) ? goal.deadlineAt.difference(now).inDays : 0;
     int monthsLeft = (daysLeft / 30).ceil();
     if (monthsLeft < 1) monthsLeft = 1;
-    return (remaining / monthsLeft).ceil();
+    final perMonth = (remaining / monthsLeft).ceil();
+    return perMonth;
   }
 
 
@@ -200,18 +205,5 @@ class SavingsViewModel extends ChangeNotifier {
 
   List<Goal> getActiveGoals() {
     return _goals.where((g) => g.currentAmount < g.targetAmount).toList();
-  
-  /// Текущий обязательный взнос в месяц, чтобы успеть к дедлайну.
-  /// Учитывает реальные пополнения: если недовнесли/перевнесли — сумма автоматически перерассчитывается.
-  int requiredMonthly(Goal goal, {DateTime? asOf}) {
-    final now = asOf ?? DateTime.now();
-    final remaining = (goal.targetAmount - goal.currentAmount).clamp(0, goal.targetAmount);
-    // считаем оставшиеся дни и переводим в "месяцы" (30 дней) с округлением вверх
-    final daysLeft = goal.deadlineAt.isAfter(now) ? goal.deadlineAt.difference(now).inDays : 0;
-    int monthsLeft = (daysLeft / 30).ceil();
-    if (monthsLeft < 1) monthsLeft = 1;
-    final perMonth = (remaining / monthsLeft).ceil();
-    return perMonth;
   }
-
 }
