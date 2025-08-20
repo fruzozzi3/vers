@@ -132,6 +132,15 @@ class SavingsViewModel extends ChangeNotifier {
       return SavingsStatistics();
     }
   }
+    int requiredMonthly(Goal goal, {DateTime? asOf}) {
+    final now = asOf ?? DateTime.now();
+    final remaining = (goal.targetAmount - goal.currentAmount).clamp(0, goal.targetAmount);
+    final daysLeft = goal.deadlineAt.isAfter(now) ? goal.deadlineAt.difference(now).inDays : 0;
+    int monthsLeft = (daysLeft / 30).ceil();
+    if (monthsLeft < 1) monthsLeft = 1;
+    return (remaining / monthsLeft).ceil();
+  }
+
 
   // Мотивационные сообщения
   String getMotivationalMessage(Goal goal) {
