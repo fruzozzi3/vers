@@ -5,9 +5,10 @@ import 'package:my_kopilka/features/savings/models/goal.dart';
 import 'package:my_kopilka/features/savings/services/savings_calculator.dart';
 import 'package:my_kopilka/features/savings/ui/screens/goal_details_screen.dart';
 import 'package:my_kopilka/features/savings/ui/screens/detailed_plan_screen.dart';
+import 'package:my_kopilka/features/savings/ui/screens/achievements_screen.dart';
+import 'package:my_kopilka/features/savings/ui/screens/settings_screen.dart';
 import 'package:my_kopilka/features/savings/viewmodels/savings_view_model.dart';
 import 'package:my_kopilka/features/settings/viewmodels/settings_view_model.dart';
-import 'package:my_kopilka/features/savings/ui/screens/settings_screen.dart';
 import 'package:my_kopilka/theme/colors.dart';
 import 'package:provider/provider.dart';
 
@@ -17,7 +18,6 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<SavingsViewModel>();
-    final settingsVM = context.watch<SettingsViewModel>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -45,12 +45,43 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
             actions: [
+              // Кнопка достижений
+              IconButton(
+                icon: Stack(
+                  children: [
+                    const Icon(Icons.emoji_events, color: Colors.white),
+                    // Индикатор новых достижений
+                    if (vm.achievements.where((a) => a.isUnlocked && a.isNew).isNotEmpty)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const AchievementsScreen(),
+                    ),
+                  );
+                },
+                tooltip: 'Достижения',
+              ),
+              // Кнопка настроек
               IconButton(
                 icon: const Icon(Icons.settings, color: Colors.white),
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => SettingsScreen(),
+                      builder: (_) => const SettingsScreen(),
                     ),
                   );
                 },
@@ -72,6 +103,10 @@ class HomeScreen extends StatelessWidget {
                         delegate: SliverChildListDelegate([
                           // Общая статистика
                           _buildOverallStatsCard(context, vm, isDark),
+                          const SizedBox(height: 16),
+
+                          // Быстрые действия (включая достижения)
+                          _buildQuickActionsCard(context, vm, isDark),
                           const SizedBox(height: 16),
 
                           // Заголовок целей
@@ -122,6 +157,22 @@ class HomeScreen extends StatelessWidget {
               'Поставьте цель и начните копить.\nКаждый рубль приближает к мечте!',
               style: Theme.of(context).textTheme.bodyLarge,
               textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            // Кнопка достижений даже в пустом состоянии
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const AchievementsScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.emoji_events),
+              label: const Text('Посмотреть достижения'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
             ),
           ],
         ),
@@ -222,6 +273,137 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionsCard(BuildContext context, SavingsViewModel vm, bool isDark) {
+    final unlockedAchievements = vm.achievements.where((a) => a.isUnlocked).length;
+    final totalAchievements = vm.achievements.length;
+    
+    return SizedBox(
+      height: 100,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          // Карточка достижений
+          _buildActionCard(
+            context,
+            icon: Icons.emoji_events,
+            title: 'Достижения',
+            subtitle: '$unlockedAchievements/$totalAchievements получено',
+            color: Colors.amber,
+            isDark: isDark,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const AchievementsScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 12),
+          
+          // Карточка статистики
+          _buildActionCard(
+            context,
+            icon: Icons.analytics,
+            title: 'Статистика',
+            subtitle: 'Анализ прогресса',
+            color: Colors.blue,
+            isDark: isDark,
+            onTap: () {
+              // TODO: Навигация к экрану статистики
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Статистика в разработке')),
+              );
+            },
+          ),
+          const SizedBox(width: 12),
+          
+          // Карточка советов
+          _buildActionCard(
+            context,
+            icon: Icons.lightbulb,
+            title: 'Советы',
+            subtitle: 'Как копить эффективнее',
+            color: Colors.green,
+            isDark: isDark,
+            onTap: () {
+              // TODO: Навигация к экрану советов
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Советы в разработке')),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionCard(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 160,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              color.withOpacity(0.8),
+              color.withOpacity(0.6),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Icon(
+              icon,
+              color: Colors.white,
+              size: 28,
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -403,7 +585,7 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// НОВАЯ УМНАЯ КАРТОЧКА ЦЕЛИ
+// УМНАЯ КАРТОЧКА ЦЕЛИ
 class SmartGoalCard extends StatelessWidget {
   final Goal goal;
   const SmartGoalCard({super.key, required this.goal});
@@ -451,7 +633,7 @@ class SmartGoalCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             goal.name,
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -467,7 +649,7 @@ class SmartGoalCard extends StatelessWidget {
                                 ),
                               );
                             },
-                            icon: Icon(
+                            icon: const Icon(
                               Icons.analytics,
                               color: Colors.white,
                               size: 20,
@@ -621,7 +803,7 @@ class SmartGoalCard extends StatelessWidget {
               color: (isDark ? DarkColors.surface : LightColors.background).withOpacity(0.3),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Center(child: CircularProgressIndicator()),
+            child: const Center(child: CircularProgressIndicator()),
           );
         }
         
@@ -819,13 +1001,13 @@ class SmartGoalCard extends StatelessWidget {
                   ),
                 );
               },
-              icon: Icon(Icons.analytics, size: 16),
-              label: Text(
+              icon: const Icon(Icons.analytics, size: 16),
+              label: const Text(
                 'План',
                 style: TextStyle(fontSize: 12),
               ),
               style: TextButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
@@ -851,7 +1033,7 @@ class SmartGoalCard extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  '+${amount} ₽',
+                  '+$amount ₽',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
