@@ -21,8 +21,19 @@ class DetailedPlanScreen extends StatelessWidget {
     
     return Scaffold(
       appBar: AppBar(
-        title: Text('Детальный план'),
-        subtitle: Text(goal.name),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Детальный план'),
+            Text(
+              goal.name,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
         elevation: 0,
         backgroundColor: Colors.transparent,
       ),
@@ -96,7 +107,7 @@ class DetailedPlanScreen extends StatelessWidget {
         children: [
           Text(
             plan.isGoalCompleted ? 'Цель достигнута! 🎉' : 'Текущий статус',
-            style: TextStyle(
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -130,7 +141,7 @@ class DetailedPlanScreen extends StatelessWidget {
                   ),
                   Text(
                     currencyFormat.format(goal.currentAmount),
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
@@ -148,7 +159,7 @@ class DetailedPlanScreen extends StatelessWidget {
                 child: Center(
                   child: Text(
                     '${(progress * 100).toStringAsFixed(0)}%',
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -167,7 +178,7 @@ class DetailedPlanScreen extends StatelessWidget {
               value: progress,
               minHeight: 12,
               backgroundColor: Colors.white.withOpacity(0.3),
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
             ),
           ),
         ],
@@ -603,7 +614,7 @@ class DetailedPlanScreen extends StatelessWidget {
   Map<String, dynamic> _calculateDailyScenario(SavingsPlan plan) {
     final remaining = plan.totalRemaining ?? 0;
     final dailyAmount = plan.dailyRequired;
-    final daysToComplete = remaining > 0 ? (remaining / dailyAmount).ceil() : 0;
+    final daysToComplete = remaining > 0 && dailyAmount > 0 ? (remaining / dailyAmount).ceil() : 0;
     final completionDate = DateTime.now().add(Duration(days: daysToComplete));
     
     return {
