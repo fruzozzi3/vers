@@ -5,6 +5,7 @@ import 'package:my_kopilka/features/savings/models/goal.dart';
 import 'package:my_kopilka/features/savings/models/transaction.dart';
 import 'package:my_kopilka/features/savings/models/achievement.dart';
 import 'package:my_kopilka/features/savings/models/statistics.dart';
+import 'package:my_kopilka/features/savings/services/savings_calculator.dart';
 
 class SavingsViewModel extends ChangeNotifier {
   final SavingsRepository _repository;
@@ -18,6 +19,9 @@ class SavingsViewModel extends ChangeNotifier {
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+
+  // Кэш для планов накопления
+  final Map<int, SavingsPlan> _plansCache = {};
 
   Future<void> init() async {
     try {
@@ -40,6 +44,7 @@ class SavingsViewModel extends ChangeNotifier {
         goal.currentAmount = await _repository.getCurrentSumForGoal(goal.id!);
       }
       _goals = fetchedGoals;
+      _plansCache.clear(); // Очищаем кэш при обновлении данных
 
       _isLoading = false;
       notifyListeners();
@@ -48,6 +53,19 @@ class SavingsViewModel extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// Получить умный план накопления для цели
+  Future<SavingsPlan> getSavingsPlan(Goal goal) async {
+    if (_plansCache.containsKey(goal.id)) {
+      return _plansCache[goal.id]!;
+    }
+
+    final transactions = await getTransactionsForGoal(goal.id!);
+    final plan = SavingsCalculator.calculatePlan(goal, transactions);
+    _plansCache[goal.id!] = plan;
+    
+    return plan;
   }
 
   Future<void> addGoal(String name, int targetAmount, DateTime deadlineAt) async {
@@ -68,6 +86,7 @@ class SavingsViewModel extends ChangeNotifier {
   Future<void> updateGoal(Goal goal) async {
     try {
       await _repository.updateGoal(goal);
+      _plansCache.remove(goal.id); // Удаляем из кэша
       await fetchGoals();
     } catch (e) {
       debugPrint('Error updating goal: $e');
@@ -77,6 +96,7 @@ class SavingsViewModel extends ChangeNotifier {
   Future<void> deleteGoal(int goalId) async {
     try {
       await _repository.deleteGoal(goalId);
+      _plansCache.remove(goalId); // Удаляем из кэша
       await fetchGoals();
     } catch (e) {
       debugPrint('Error deleting goal: $e');
@@ -92,6 +112,7 @@ class SavingsViewModel extends ChangeNotifier {
         createdAt: DateTime.now(),
       );
       await _repository.addTransaction(transaction);
+      _plansCache.remove(goalId); // Удаляем из кэша для пересчета
       await fetchGoals();
     } catch (e) {
       debugPrint('Error adding transaction: $e');
@@ -133,83 +154,41 @@ class SavingsViewModel extends ChangeNotifier {
     }
   }
 
-  /// Расчет обязательного взноса, который нужно внести в текущем месяце.
+  // НОВЫЕ МЕТОДЫ с умной логикой
+  
+  /// Умное сообщение о статусе с учетом плана
+  Future<String> getSmartMotivationalMessage(Goal goal) async {
+    final plan = await getSavingsPlan(goal);
+    return plan.statusMessage;
+  }
+
+  /// Получить требуемый месячный взнос (новый умный метод)
+  Future<int> getRequiredMonthly(Goal goal) async {
+    final plan = await getSavingsPlan(goal);
+    return plan.monthlyRequired;
+  }
+
+  /// Получить требуемый дневной взнос (новый умный метод)
+  Future<int> getRequiredDaily(Goal goal) async {
+    final plan = await getSavingsPlan(goal);
+    return plan.dailyRequired;
+  }
+
+  // УСТАРЕВШИЕ МЕТОДЫ (оставлены для совместимости)
+  
+  @deprecated
   Future<int> requiredMonthlyForPeriod(Goal goal) async {
-    // Находим начало и конец текущего месяца
-    final now = DateTime.now();
-    final startOfMonth = DateTime(now.year, now.month, 1);
-    final endOfMonth = DateTime(now.year, now.month + 1, 0);
-
-    // Получаем все транзакции по цели
-    final transactions = await _repository.getTransactionsForGoal(goal.id!);
-
-    // Сумма, внесенная в текущем месяце
-    final amountThisMonth = transactions
-        .where((t) => t.createdAt.isAfter(startOfMonth) && t.createdAt.isBefore(endOfMonth))
-        .fold<int>(0, (sum, t) => sum + t.amount);
-
-    // Расчет общей необходимой суммы в месяц на весь период
-    final remainingAmount = (goal.targetAmount - goal.currentAmount).clamp(0, goal.targetAmount);
-    final monthsLeft = (goal.deadlineAt.difference(now).inDays / 30).ceil();
-    final totalMonthlyRequired = (remainingAmount / (monthsLeft < 1 ? 1 : monthsLeft)).ceil();
-
-    // Сумма, которую еще нужно внести в этом месяце
-    final neededThisMonth = (totalMonthlyRequired - amountThisMonth).clamp(0, totalMonthlyRequired);
-
-    return neededThisMonth;
+    final plan = await getSavingsPlan(goal);
+    return plan.monthlyRequired;
   }
   
-  /// Расчет обязательного взноса, который нужно внести сегодня.
+  @deprecated
   Future<int> requiredDailyForPeriod(Goal goal) async {
-      final now = DateTime.now();
-      final startOfMonth = DateTime(now.year, now.month, 1);
-      final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-      final daysPassed = now.day;
-      final daysLeftInMonth = daysInMonth - daysPassed;
-
-      // Получаем все транзакции по цели
-      final transactions = await _repository.getTransactionsForGoal(goal.id!);
-      
-      // Сумма, внесенная с начала месяца
-      final amountThisMonth = transactions
-          .where((t) => t.createdAt.isAfter(startOfMonth))
-          .fold<int>(0, (sum, t) => sum + t.amount);
-          
-      // Сумма, которую нужно было внести к текущему дню
-      final totalMonthlyRequired = await requiredMonthlyForPeriod(goal);
-      final neededSoFar = (totalMonthlyRequired / daysInMonth).ceil() * daysPassed;
-
-      final neededNow = (neededSoFar - amountThisMonth).clamp(0, totalMonthlyRequired);
-
-      if (daysLeftInMonth <= 0) {
-          return neededNow;
-      }
-      return (neededNow / daysLeftInMonth).ceil();
+    final plan = await getSavingsPlan(goal);
+    return plan.dailyRequired;
   }
 
-  // Переименовываем старый метод, чтобы он не конфликтовал
-  int requiredMonthlyTotal(Goal goal) {
-      final now = DateTime.now();
-      final remaining = (goal.targetAmount - goal.currentAmount).clamp(0, goal.targetAmount);
-      final daysLeft = goal.deadlineAt.isAfter(now) ? goal.deadlineAt.difference(now).inDays : 0;
-      int monthsLeft = (daysLeft / 30).ceil();
-      if (monthsLeft < 1) monthsLeft = 1;
-      final perMonth = (remaining / monthsLeft).ceil();
-      return perMonth;
-  }
-  
-  // Переименовываем старый метод
-  int requiredDailyTotal(Goal goal) {
-      final now = DateTime.now();
-      final remaining = (goal.targetAmount - goal.currentAmount).clamp(0, goal.targetAmount);
-      final daysLeft = goal.deadlineAt.isAfter(now) ? goal.deadlineAt.difference(now).inDays : 0;
-      if (daysLeft < 1) {
-          return remaining;
-      }
-      return (remaining / daysLeft).ceil();
-  }
-
-  // Мотивационные сообщения
+  // Обычные мотивационные сообщения (для обратной совместимости)
   String getMotivationalMessage(Goal goal) {
     final progress = goal.currentAmount / goal.targetAmount;
     
